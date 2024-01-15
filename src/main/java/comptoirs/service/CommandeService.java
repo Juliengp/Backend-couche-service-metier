@@ -106,8 +106,24 @@ public class CommandeService {
      */
     @Transactional
     public Ligne ajouterLigne(int commandeNum, int produitRef, @Positive int quantite) {
-        // TODO : implémenter cette méthode
-        throw new UnsupportedOperationException("Pas encore implémenté");
+        var commande = commandeDao.findById(commandeNum).orElseThrow();
+        var produit = produitDao.findById(produitRef).orElseThrow();
+        var nouvelleLigneDeCommande = new Ligne(commande,produit,quantite);
+
+        int qttTotalecommandee = produit.getUnitesCommandees()+ quantite;
+        int qttEnStock = produit.getUnitesEnStock();
+
+        if(qttEnStock<qttTotalecommandee){
+            throw new IllegalStateException("la quantité commandée est supérieure à la quantité en stock");
+        }
+
+        if(commande.getEnvoyeele()!=null){
+            throw new IllegalStateException("la commande ne doit pas être déjà envoyée");
+        }
+
+        nouvelleLigneDeCommande.getProduit().setUnitesCommandees(nouvelleLigneDeCommande.getProduit().getUnitesCommandees() + quantite);
+        ligneDao.save(nouvelleLigneDeCommande);
+        return nouvelleLigneDeCommande;
     }
 
     /**
@@ -130,7 +146,20 @@ public class CommandeService {
      */
     @Transactional
     public Commande enregistreExpedition(int commandeNum) {
-        // TODO : implémenter cette méthode
-        throw new UnsupportedOperationException("Pas encore implémenté");
+        var commande = commandeDao.findById(commandeNum).orElseThrow();
+
+        if(commande.getEnvoyeele()!=null){
+            throw new IllegalStateException("la commande ne doit pas être déjà envoyée");
+        }
+
+        commande.setEnvoyeele(LocalDate.now());
+
+        for(Ligne ligne : commande.getLignes()){
+            ligne.getProduit().setUnitesEnStock(ligne.getProduit().getUnitesEnStock()-ligne.getQuantite());
+            ligne.getProduit().setUnitesCommandees(ligne.getProduit().getUnitesCommandees()-ligne.getQuantite());
+        }
+
+        return commande;
+
     }
 }
